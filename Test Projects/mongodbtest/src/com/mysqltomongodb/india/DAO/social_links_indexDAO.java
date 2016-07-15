@@ -1,0 +1,1729 @@
+package com.mysqltomongodb.india.DAO;
+
+
+import com.mysqltomongodb.india.DTO.*;
+import java.util.List;
+import java.util.regex.Pattern;import java.util.Set;
+import java.math.*;
+import com.mongodb.*;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.MongoClient;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.sql.Timestamp;
+
+
+
+
+public class social_links_indexDAO { 
+
+	public String databaseName="india";
+	public String tableName="social_links_index";
+	public String tempTableName="social_links_index";
+	public String[] javaDataTypes={"int","boolean","long","float","double","String","Date","Timestamp","Time"};
+	public String[] colNames={"site_id","social_link_type_id","link"};
+	public String[] tempColNames={"site_id","social_link_type_id","link"};
+	public String[] daeComparators={"Equality","Less Than","Less Than Equals","Greater Than","Greater Than Equals","Not Equals"};
+	public String[] sqlComparators={"=","<","<=",">",">=","!="};
+	public String[] colTypes= {"long","int","String"};
+	public int primaryKeyId=0;
+
+	public social_links_indexDAO() {
+	
+	}
+	public void insert(String str){
+	int indexInsert = str.indexOf("INSERT INTO ");
+	Stack<Character> st = new Stack<Character>();
+	Stack<Character> st1= new Stack<Character>();
+	while(indexInsert != (-1)){
+		int indexC = str.indexOf(";",indexInsert);
+		String tempStatement = str.substring(indexInsert,indexC+1);
+		String[] tokens = tempStatement.split(" ",4);
+		if(!performOper(tokens[2]) .equals(tableName)){
+			System.out.println("Syntax Error in Table name\nRequired Name not found");
+			return;
+		}
+		int indexValueStart = tempStatement.indexOf("(",str.indexOf("VALUES")+1);
+		String valueString = tempStatement.substring(indexValueStart,tempStatement.indexOf(";"));
+		ArrayList<String> EachRow = new ArrayList<String>();
+		String test="";
+		for(int i=0;i<valueString.length();i++){
+			if(valueString.charAt(i) == '('){
+				if(st.empty()){
+					st.push('(');
+				}else{
+					test+=String.valueOf(valueString.charAt(i));
+				}
+			}
+			if(valueString.charAt(i)== '"'){
+				if(!st.empty() && st.peek()=='"'){
+					st.pop();
+				}else{
+					if(st.peek() =='('){
+						st.push('"');
+					}
+				}
+			}
+			if(valueString.charAt(i)== '`'){
+				if(!st.empty() && st.peek()=='`'){
+					st.pop();
+				}else{
+					if(st.peek() =='('){
+						st.push('`');
+					}
+				}
+			}
+			if(valueString.charAt(i)== '\''){
+				if(!st.empty() && st.peek()=='\''){
+					st.pop();
+				}else{
+					if(st.peek() =='('){
+						st.push('\'');
+					}
+				}
+			}
+			if(valueString.charAt(i)==')' ){
+				if(!st.empty() && st.peek()=='('){
+					st.pop();
+				}else{
+					test+=String.valueOf(valueString.charAt(i));
+				}
+			}
+			if(valueString.charAt(i) ==','){
+				if(st.empty()){
+					EachRow.add(test);
+					test="";
+				}else{
+					test+=String.valueOf(valueString.charAt(i));
+				}
+			}else{
+				test+=String.valueOf(valueString.charAt(i));
+			}
+			}
+			EachRow.add(test);
+			while(!st.empty()){
+				st.pop();
+			}
+			String[] columnsNames = getColumnNames(tempStatement.substring(0,tempStatement.indexOf("VALUES")));
+			for(int i=0;i<EachRow.size();i++){
+				String temp="";
+				ArrayList<String> EachValue = new ArrayList<String>();
+				for(int j=0;j<EachRow.get(i).length();j++){
+					if(EachRow.get(i).charAt(j)== '"'){
+						if(!st.empty() && st.peek()=='"'){
+							st.pop();
+					}else{
+					if(st.empty()){
+						st.push('"');
+					}
+				}
+			}
+			if(EachRow.get(i).charAt(j)== '`'){
+				if(!st.empty() && st.peek()=='`'){
+					st.pop();
+				}else{
+					if(st.empty()){
+						st.push('`');
+					}
+				}
+			}
+			if(EachRow.get(i).charAt(j)== '\''){
+				if(!st.empty() && st.peek()=='\''){
+					st.pop();
+				}else{
+					if(st.empty()){
+						st.push('\'');
+					}
+				}
+			}
+			if(EachRow.get(i).charAt(j) ==','){
+				if(st.empty()){
+					EachValue.add(temp);
+					temp="";
+				}else{
+					temp+=String.valueOf(EachRow.get(i).charAt(j));
+				}
+			}else{
+					temp+=String.valueOf(EachRow.get(i).charAt(j));
+				}
+			}
+			EachValue.add(temp);
+			String[] eachValue = EachRow.get(i).split(",");
+			InsertQueryGenerator(columnsNames,EachValue);
+			}
+			indexInsert = str.indexOf("INSERT INTO ",indexC+1);
+			}
+			}
+
+
+
+			public String[] getColumnNames(String str){
+				if(str.indexOf("(") <0 && str.indexOf(")")<0){
+					return colNames;
+				}
+				String listCols = str.substring(str.indexOf("(")+1, str.indexOf(")"));
+				String[] eachCol = listCols.split(",");
+				for(int i=0;i<eachCol.length;i++){
+					eachCol[i] = performOper(eachCol[i]);
+				}
+				return eachCol;
+			}
+	public ArrayList<social_links_indexDTO> select(String str){
+		try{
+			ArrayList<social_links_indexDTO> test = new ArrayList<social_links_indexDTO>(); 
+			this.setTempTableName(str);
+			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+			DB db = mongoClient.getDB( databaseName );
+			System.out.println("Connect to database successfully");
+		DBCollection coll = db.getCollection(tableName);
+		int[] count = getSubQueryConfirmation( str);
+		int[] mainTagsIndex = mainClauses(str,count);
+			BasicDBObject where = WhereStatement(str,mainTagsIndex);
+			BasicDBObject sortQuery = sort(str,mainTagsIndex);
+			BasicDBObject whereCondition;
+			if(where == null){
+				whereCondition = new BasicDBObject();
+			}else{
+					whereCondition = where;
+			}
+			DBObject sort =  new BasicDBObject("$sort",sortQuery);
+			String[] limitOffset = limitOffset(str).split(":");
+			int limitValue = Integer.parseInt(limitOffset[0]);
+			int offsetValue = Integer.parseInt(limitOffset[1]);
+			BasicDBObject limit = new BasicDBObject("$limit",limitValue);
+			BasicDBObject offSet = new BasicDBObject("$skip",offsetValue);
+			String[] ColumnNamesToReturned = selectColumnNamesToReturned(str);
+			for(int i=0;i<ColumnNamesToReturned.length;i++){
+				if(!tableName .equals(tempTableName)){
+					ColumnNamesToReturned[i] = ColumnNamesToReturned[i].replace(tempTableName+".", "");
+				}
+					ColumnNamesToReturned[i] = this.performOper(ColumnNamesToReturned[i]);
+			}
+			boolean groupBy = true;
+			int[] subQueryCounter = getSubQueryConfirmation(str);
+			int indexgroupTemp = str.toUpperCase().indexOf("GROUP BY ");
+			if(indexgroupTemp <0){
+				groupBy = false;
+			}
+			int indexOfGroup=0;
+			if(groupBy == true){
+				while(indexgroupTemp >= 0) {
+					if(subQueryCounter[indexgroupTemp] ==0){
+						indexOfGroup = indexgroupTemp;
+						break;
+					}
+					indexgroupTemp = str.indexOf("GROUP BY ", indexgroupTemp+1);
+				}
+				if(indexOfGroup ==0){
+					groupBy = false;
+				}
+			}
+			if(groupBy== false){
+				DBObject forWhere = new BasicDBObject("$match",whereCondition);
+				BasicDBObject dbobjectForGroup = new BasicDBObject();
+				for(int i=0;i<ColumnNamesToReturned.length;i++){
+					String tempColumnToGet ="$"+ColumnNamesToReturned[i];
+					dbobjectForGroup.append(ColumnNamesToReturned[i], tempColumnToGet);
+				}
+				BasicDBObject idObject = new BasicDBObject("_id",dbobjectForGroup);
+				for(int i=0;i<ColumnNamesToReturned.length;i++){
+					String tempColumnToGet = "$"+ColumnNamesToReturned[i];
+					idObject.append(ColumnNamesToReturned[i], new BasicDBObject("$addToSet",tempColumnToGet));
+				}
+				BasicDBObject groupObject = new BasicDBObject("$group",idObject);
+				BasicDBObject objectForProject = new BasicDBObject("_id",0);
+				for(int i=0;i<ColumnNamesToReturned.length;i++){
+					if(ColumnNamesToReturned[i] .equals("site_id") || ColumnNamesToReturned[i] .equals("social_link_type_id") || ColumnNamesToReturned[i] .equals("link") ){
+						String tempColumnToGet = "$"+ColumnNamesToReturned[i];
+						objectForProject.append(ColumnNamesToReturned[i], tempColumnToGet);
+					}
+				}
+				DBObject project = new BasicDBObject("$project",objectForProject );
+				AggregationOutput output = coll.aggregate(forWhere,groupObject,project,sort,offSet,limit);
+					 for (DBObject result : output.results()) {
+						social_links_indexDTO temp = new social_links_indexDTO();
+						 for(int i=0;i<ColumnNamesToReturned.length;i++){
+							int colCounter=0;
+							if(ColumnNamesToReturned[i] .equals("site_id")){
+								String site_id = result.get("site_id").toString();
+								temp.setsite_id(Long.parseLong(performOper(site_id)));
+							}
+							else if(ColumnNamesToReturned[i] .equals("social_link_type_id")){
+								String social_link_type_id = result.get("social_link_type_id").toString();
+								temp.setsocial_link_type_id(Integer.parseInt(performOper(social_link_type_id)));
+							}
+							else if(ColumnNamesToReturned[i] .equals("link")){
+								String link = result.get("link").toString();
+								temp.setlink((performOper(link)));
+							}
+						}
+						test.add(temp);
+					}
+			}else{
+				String groupStatement ="";
+				int requiredIndex=0;
+				for(int i=0;i<mainTagsIndex.length;i++){
+						if(indexOfGroup == mainTagsIndex[i]){
+							requiredIndex=i;
+						break;
+					}
+				}
+				groupStatement = str.substring(mainTagsIndex[requiredIndex], mainTagsIndex[requiredIndex+1]);
+					groupStatement = groupStatement.replaceFirst("GROUP BY ", "");
+				String[] eachColumnForGroup = groupStatement.split(",");
+				DBObject forWhere = new BasicDBObject("$match",whereCondition);
+					BasicDBObject dbobjectForGroup = new BasicDBObject();
+				for(int i=0;i<eachColumnForGroup.length;i++){
+					String tempColumnToGet = "$"+eachColumnForGroup[i];
+					dbobjectForGroup.append(eachColumnForGroup[i], tempColumnToGet);
+				}
+					BasicDBObject idObject = new BasicDBObject("_id",dbobjectForGroup);
+				for(int i=0;i<ColumnNamesToReturned.length;i++){
+					for(int j=0;j<this.colNames.length;j++){
+						if(ColumnNamesToReturned[i].contains(this.colNames[j])){
+							String tempColumnToGet = "$"+colNames[j];
+							idObject.append(colNames[j], new BasicDBObject("$addToSet",tempColumnToGet));
+						}
+					}
+				}
+				BasicDBObject groupObject = new BasicDBObject("$group",idObject);
+				BasicDBObject objectForProject = new BasicDBObject("_id",0);
+				for(int i=0;i<ColumnNamesToReturned.length;i++){
+					if(this.performOper(ColumnNamesToReturned[i]) .equals("site_id") || this.performOper(ColumnNamesToReturned[i]) .equals("social_link_type_id") || this.performOper(ColumnNamesToReturned[i]) .equals("link") ){
+						String tempColumnToGet = "$"+ColumnNamesToReturned[i];
+						objectForProject.append(ColumnNamesToReturned[i], tempColumnToGet);
+					}else{
+							for(int j=0;j<this.colNames.length;j++){
+							if(ColumnNamesToReturned[i].contains(this.colNames[j])){
+								String tempColumnToGet = "$"+colNames[j];
+								if(ColumnNamesToReturned[i].contains("COUNT")){
+									objectForProject.append("count", new BasicDBObject("$size",tempColumnToGet));
+								}else{
+									objectForProject.append(this.colNames[j], tempColumnToGet);
+								}
+							}
+						}
+					}
+				}
+				DBObject project = new BasicDBObject("$project",objectForProject );
+				AggregationOutput output = coll.aggregate(forWhere,groupObject,project,sort,offSet,limit);
+					 for (DBObject result : output.results()) {
+						social_links_indexDTO temp = new social_links_indexDTO();
+						 for(int i=0;i<ColumnNamesToReturned.length;i++){
+							int colCounter=0;
+							if(ColumnNamesToReturned[i] .equals("site_id")){
+								String site_id = result.get("site_id").toString();
+								temp.setsite_id(Long.parseLong(performOper(site_id)));
+							}
+							else if(ColumnNamesToReturned[i] .equals("social_link_type_id")){
+								String social_link_type_id = result.get("social_link_type_id").toString();
+								temp.setsocial_link_type_id(Integer.parseInt(performOper(social_link_type_id)));
+							}
+							else if(ColumnNamesToReturned[i] .equals("link")){
+								String link = result.get("link").toString();
+								temp.setlink((performOper(link)));
+							}
+						else{
+							if(ColumnNamesToReturned[i].contains("COUNT")){
+								String count1 = result.get("count").toString();
+									temp.setcount(Integer.parseInt(performOper(count1)));
+							}else{
+								int colId=-1;
+									for(int j=0;j<this.colNames.length;j++){
+										if(ColumnNamesToReturned[i].contains(this.colNames[j])){
+											colId=j;
+											break;
+										}
+									}
+									if(colId>=0){
+										if(ColumnNamesToReturned[i].contains("MAX")){
+											String value = result.get(this.colNames[colId]).toString();
+											temp.setmax(this.getGroupbyFunctionValue(value, 1));
+										}
+										if(ColumnNamesToReturned[i].contains("MIN")){
+											String value = result.get(this.colNames[colId]).toString();
+											temp.setmin(this.getGroupbyFunctionValue(value, 2));
+										}
+										if(ColumnNamesToReturned[i].contains("AVG")){
+											String value = result.get(this.colNames[colId]).toString();
+											temp.setavg(this.getGroupbyFunctionValue(value, 3));
+										}
+										if(ColumnNamesToReturned[i].contains("SUM")){
+											String value = result.get(this.colNames[colId]).toString();
+											temp.setsum(this.getGroupbyFunctionValue(value, 4));
+										}
+									}
+								}
+							}
+						}
+						test.add(temp);
+					}
+				}
+		return test;
+	}catch(Exception e){
+			System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+	}
+	return null;
+	}
+	public String[][] selectAsWholeArray(String str){
+		try{
+			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+			DB db = mongoClient.getDB( databaseName );
+			System.out.println("Connect to database successfully");
+		DBCollection coll = db.getCollection(tableName);
+		int[] count = getSubQueryConfirmation( str);
+		int[] mainTagsIndex = mainClauses(str,count);
+			BasicDBObject whereCondition = WhereStatement(str,mainTagsIndex);
+			String[] ColumnNamesToReturned = selectColumnNamesToReturned(str);
+			for(int i=0;i<ColumnNamesToReturned.length;i++){
+				if(!tableName .equals(tempTableName)){
+					ColumnNamesToReturned[i] = ColumnNamesToReturned[i].replace(tempTableName+".", "");
+				}
+				ColumnNamesToReturned[i] = this.performOper(ColumnNamesToReturned[i]);
+			}
+			BasicDBObject sortQuery = sort(str,mainTagsIndex);
+			DBCursor cursor = coll.find(whereCondition);
+			cursor.sort(sortQuery);
+			String[] limitOffset = limitOffset(str).split(":");
+			int limitValue = Integer.parseInt(limitOffset[0]);
+			int offsetValue = Integer.parseInt(limitOffset[1]);
+			int counter = cursor.count();
+			if( limitValue !=0 && offsetValue !=0){
+			cursor.skip(offsetValue);
+			cursor.limit(limitValue);
+			counter = counter-offsetValue;
+			if(counter >limitValue){
+			counter = limitValue;
+			}
+			}else if(counter > limitValue && limitValue !=0){
+			cursor.limit(limitValue);
+			counter = limitValue;
+			}else if(offsetValue !=0){
+			cursor.skip(offsetValue);
+			counter = counter-offsetValue;
+			}
+			String[][] arrayValues = new String[counter][ColumnNamesToReturned.length];
+			counter=0;	
+		while (cursor.hasNext()){
+			cursor.next();
+				for(int i=0;i<ColumnNamesToReturned.length;i++){
+					int colCounter=0;
+					if(ColumnNamesToReturned[i] .equals("site_id")){
+						arrayValues[counter][i] = cursor.curr().get("site_id").toString();
+					}
+					else if(ColumnNamesToReturned[i] .equals("social_link_type_id")){
+						arrayValues[counter][i] = cursor.curr().get("social_link_type_id").toString();
+					}
+					else if(ColumnNamesToReturned[i] .equals("link")){
+						arrayValues[counter][i] = cursor.curr().get("link").toString();
+					}
+				else{
+					String tempMysqlFunctionChecker = this.performOper(ColumnNamesToReturned[i]);
+						if(tempMysqlFunctionChecker.contains("CONCAT")){
+							String tempValue = tempMysqlFunctionChecker.substring(tempMysqlFunctionChecker.indexOf("(")+1,tempMysqlFunctionChecker.length());
+							int[] subQueryCounter2 = this.getSubQueryConfirmation(tempValue);
+							ArrayList<Integer> indexOfComma = new ArrayList<Integer>();
+							ArrayList<String> eachCommaElement = new ArrayList<String>();
+							System.out.println(tempValue);
+							int tempIndexComma = tempValue.indexOf(",");
+							while(tempIndexComma >=0){
+								if(subQueryCounter2[tempIndexComma] == 0){
+									indexOfComma.add(tempIndexComma);
+								}
+								tempIndexComma = tempValue.indexOf(",",tempIndexComma+1);
+							}
+							if(indexOfComma.isEmpty()){
+								System.out.println("qwerty");
+							}
+							if(indexOfComma.size() ==0){
+								eachCommaElement.add(tempValue);
+							}else{
+								for(int j=0;j<indexOfComma.size();j++){
+									if(j==0){
+										eachCommaElement.add(tempValue.substring(0,indexOfComma.get(0)));
+									}else{
+										eachCommaElement.add(tempValue.substring(indexOfComma.get(j-1), indexOfComma.get(j)));
+									}
+								}
+									eachCommaElement.add(tempValue.substring(indexOfComma.get(indexOfComma.size()-1)));
+								}
+								for(int j=0;j<eachCommaElement.size();j++){
+									if(eachCommaElement.get(j).indexOf(",") ==0){
+										eachCommaElement.set(j, eachCommaElement.get(j).replaceFirst(",",""));
+									}
+								eachCommaElement.set(j,performOper(eachCommaElement.get(j)));
+							}
+							String[] eachElement = new String[eachCommaElement.size()];
+							for(int j=0;j<eachCommaElement.size();j++){
+								eachElement[j] = this.performOper(eachCommaElement.get(j));
+							}
+							int[] colIndexId = new int[eachElement.length];
+							for(int j=0;j<eachElement.length;j++){
+								colIndexId[j] =-1;
+								for(int k=0;k<colNames.length;k++){
+									if(eachElement[j] .equals(colNames[k])){
+										colIndexId[j] = k;
+										break;
+									}
+								}
+							}
+							String concatValue="";
+							for(int j=0;j<eachElement.length;j++){
+								if(colIndexId[j] ==-1){
+									concatValue+=eachElement[j];
+								}else{
+									concatValue+=cursor.curr().get(eachElement[j]).toString();
+								}
+							}
+						arrayValues[counter][i]=(concatValue);
+					}
+					}
+			}
+			counter++;
+		}
+		return arrayValues;
+	}catch(Exception e){
+			System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+	}
+	return null;
+	}
+	public String[] selectColumnNamesToReturned(String str){
+	int selectIndex = str.indexOf("SELECT ");
+	int fromIndex = str.indexOf(" FROM");
+	String listString = str.substring(selectIndex+6, fromIndex);
+	if(performOper(listString) .equals( "*")){
+	return colNames;
+	}
+	int[] subQueryCounter2 = this.getSubQueryConfirmation(listString);
+	ArrayList<Integer> indexOfComma = new ArrayList<Integer>();
+	ArrayList<String> eachCommaElement = new ArrayList<String>();
+	int tempIndexComma = listString.indexOf(",");
+	while(tempIndexComma >=0){
+		if(subQueryCounter2[tempIndexComma] == 0){
+			indexOfComma.add(tempIndexComma);
+		}
+		tempIndexComma = listString.indexOf(",",tempIndexComma+1);
+	}
+	if(indexOfComma.isEmpty()){
+	}
+	if(indexOfComma.size() ==0){
+		eachCommaElement.add(listString);
+	}else{
+		for(int i=0;i<indexOfComma.size();i++){
+			if(i==0){
+				eachCommaElement.add(listString.substring(0,indexOfComma.get(0)));
+			}else{
+				eachCommaElement.add(listString.substring(indexOfComma.get(i-1), indexOfComma.get(i)));
+			}
+		}
+		eachCommaElement.add(listString.substring(indexOfComma.get(indexOfComma.size()-1)));
+	}
+	for(int i=0;i<eachCommaElement.size();i++){
+		if(eachCommaElement.get(i).indexOf(",") ==0){
+			eachCommaElement.set(i, eachCommaElement.get(i).replaceFirst(",",""));
+		}
+	}
+	String[] eachElement = new String[eachCommaElement.size()];
+	for(int i=0;i<eachCommaElement.size();i++){
+		eachElement[i] = eachCommaElement.get(i);
+	}
+	return eachElement;
+	}
+	public ArrayList<String> selectAsArray(String str){
+		try{
+			ArrayList<String> returnList = new ArrayList<String>();
+			String checkSingleValueMethods = this.singleValueOfMethods(str);
+			if(checkSingleValueMethods.indexOf("NO") ==0){
+			int colNameToReturn = 0;
+			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+			DB db = mongoClient.getDB( databaseName );
+			DBCollection coll = db.getCollection(tableName);
+			int[] count = getSubQueryConfirmation( str);
+			int[] mainTagsIndex = mainClauses(str,count);
+			BasicDBObject whereCondition = WhereStatement(str,mainTagsIndex);
+			String[] columnNamesToReturned = selectColumnNamesToReturned(str);
+			for(int i=0;i<columnNamesToReturned.length;i++){
+				if(!tableName .equals(tempTableName)){
+					columnNamesToReturned[i] = columnNamesToReturned[i].replace(tempTableName+".", "");
+				}
+				columnNamesToReturned[i] = this.performOper(columnNamesToReturned[i]);
+			}
+			BasicDBObject sortQuery = sort(str,mainTagsIndex);
+			DBCursor cursor = coll.find(whereCondition);
+			cursor.sort(sortQuery);
+			String[] limitOffset = limitOffset(str).split(":");
+			int limitValue = Integer.parseInt(limitOffset[0]);
+			int offsetValue = Integer.parseInt(limitOffset[1]);
+			int counter = cursor.count();
+			if( limitValue !=0 && offsetValue !=0){
+				cursor.skip(offsetValue);
+				cursor.limit(limitValue);
+				counter = counter-offsetValue;
+				if(counter >limitValue){
+					counter = limitValue;
+				}
+			}else if(counter > limitValue && limitValue !=0){
+					cursor.limit(limitValue);
+				counter = limitValue;
+			}else if(offsetValue !=0){
+				cursor.skip(offsetValue);
+				counter = counter-offsetValue;
+			}
+			counter=0;
+			while (cursor.hasNext()){
+				cursor.next();
+				String value = cursor.curr().get(columnNamesToReturned[0]).toString();
+				returnList.add(value);
+					counter++;
+			}
+		}
+			if(checkSingleValueMethods.indexOf("YES:") ==0){
+				String valuess = checkSingleValueMethods.replaceFirst("YES:", "");
+				returnList.add(valuess);
+			}
+			return returnList;
+			}catch(Exception e){
+				System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+			}
+			return null;
+		}
+	public String selectSingleValue(String str){
+		String value =this.singleValueOfMethods(str);
+			if(value.indexOf("YES:") ==0){
+				value= value.replaceFirst("YES:", "");
+			}
+		return value;
+	}
+	public String singleValueOfMethods(String str){
+		String[] methodsToDetect = {"COUNT","MAX","MIN","AVG","SUM"};
+		String[] columnNames = selectColumnNamesToReturned(str);
+		int methodId =-1;
+		for(int i=0;i<methodsToDetect.length;i++){
+			if(columnNames[0] .contains(methodsToDetect[i])){
+					methodId =i;
+				break;
+			}
+		}
+		if(methodId == -1){
+			return "NO:NO";
+		}
+		String colName = columnNames[0].substring(columnNames[0].indexOf("(")+1,columnNames[0].indexOf(")"));
+		int[] subCounter = this.getSubQueryConfirmation(str);
+		int[] clauseIdentified = this.mainClauses(str, subCounter);
+		int indexWhereTemp = str.indexOf("WHERE ");
+		int indexOfWhere=0;
+		String whereForQuery ="";
+		if(indexWhereTemp <0){
+			indexOfWhere=-1;
+		}
+		while(indexWhereTemp >= 0) {
+			if(subCounter[indexWhereTemp] ==0){
+				indexOfWhere = indexWhereTemp;
+				break;
+			}
+			indexWhereTemp = str.indexOf("WHERE ", indexWhereTemp+1);
+		}
+		colName = this.performOper(colName);
+		if(methodId ==0){
+		String query="";
+		if(indexOfWhere == -1){
+			query = "SELECT "+colName+" FROM "+tableName;
+		}else{
+			query = "SELECT "+colName+" FROM "+tableName+" "+str.substring(indexOfWhere);
+		}
+		ArrayList<String> values = this.selectAsArray(query);
+		return "YES:"+values.size();
+		}else if(methodId ==1){
+			String query="";
+			if(indexOfWhere == -1){
+				query = "SELECT "+colName+" FROM "+tableName+" LIMIT 5 ORDER BY "+colName+" DESC ";
+			}else{
+					query = "SELECT "+colName+" FROM "+tableName+" "+str.substring(indexOfWhere)+" LIMIT 5 ORDER BY "+colName+" DESC ";
+			}
+			ArrayList<String> values = this.selectAsArray(query);
+			return "YES:"+values.get(0);
+		}else if(methodId ==2){
+			String query="";
+			if(indexOfWhere == -1){
+				query = "SELECT "+colName+" FROM "+tableName;
+			}else{
+				query = "SELECT "+colName+" FROM "+tableName;
+			}
+			ArrayList<String> values = this.selectAsArray(query);
+			return "YES:"+values.get(0);
+			}else if(methodId ==3){
+				String query="";
+				if(indexOfWhere == -1){
+					query = "SELECT "+colName+" FROM "+tableName+" LIMIT 5 ORDER BY "+colName+" ";
+				}else{
+					query = "SELECT "+colName+" FROM "+tableName+" "+str.substring(indexOfWhere)+" LIMIT 5 ORDER BY "+colName+" ";
+				}
+				double value=0.0;
+				int counter=0;
+				ArrayList<String> values = this.selectAsArray(query);
+				for(int i=0;i<values.size();i++){
+					value = value + Double.parseDouble(values.get(i));
+					counter++;
+				}
+				value = value/counter;
+				String toString= Double.toString(value);
+				return "YES:"+toString;
+			}else if(methodId ==4){
+					String query="";
+				if(indexOfWhere == -1){
+					query = "SELECT "+colName+" FROM "+tableName+" LIMIT 5 ORDER BY "+colName+" ";
+				}else{
+					query = "SELECT "+colName+" FROM "+tableName+" "+str.substring(indexOfWhere)+" LIMIT 5 ORDER BY "+colName+" ";
+				}
+				double value=0.0;
+				ArrayList<String> values = this.selectAsArray(query);
+				for(int i=0;i<values.size();i++){
+					value = value + Double.parseDouble(values.get(i));
+					}
+				String toString= Double.toString(value);
+					return "YES:"+toString;
+				}else{
+				return "NO:NO";
+			}
+		}
+	public void setTempTableName(String str){
+		int[] subQueryChecker = this.getSubQueryConfirmation(str);
+		int[] clausesIndex = this.mainClauses(str, subQueryChecker);
+		int indexOfRequiredClause =0;
+		for(int i=0;i<clausesIndex.length;i++){
+			if(clausesIndex[i] !=(-1) ){
+				indexOfRequiredClause = clausesIndex[i];
+				break;
+			}
+		}
+		String requiredName = this.performOper(str.substring(str.indexOf("FROM "),indexOfRequiredClause).replaceFirst("FROM ", ""));
+		String[] ava = requiredName.split(" ");
+		if(ava[ava.length-1].equals(tableName)){
+		}else{
+			this.tempTableName = ava[ava.length-1];
+			for(int i=0;i<this.tempColNames.length;i++){
+				this.tempColNames[i] = this.tempTableName+"."+this.tempColNames[i];
+				System.out.println(tempColNames[i]);
+			}
+		}
+		}
+	public void delete(String str){
+		try{
+			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+			DB db = mongoClient.getDB( databaseName );
+			System.out.println("Connect to database successfully");
+			DBCollection coll = db.getCollection(tableName);
+		System.out.println("Collection mycol selected successfully");
+		int[] count = getSubQueryConfirmation( str);
+		int[] mainTagsIndex = mainClauses(str,count);
+			BasicDBObject whereCondition = WhereStatement(str,mainTagsIndex);
+			if(whereCondition != null){
+				WriteResult cursor = coll.remove(whereCondition);
+			}else{
+				WriteResult cursor = coll.remove(null);
+			}
+		}catch(Exception e){
+			System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+		}
+	}
+	public void update(String str){
+		try{
+			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+			DB db = mongoClient.getDB( databaseName );
+			System.out.println("Connect to database successfully");
+			 DBCollection coll = db.getCollection(tableName);
+			System.out.println("Collection mycol selected successfully");
+		int[] count = getSubQueryConfirmation( str);
+		int[] mainTagsIndex = mainClauses(str,count);
+			BasicDBObject whereQuery = WhereStatement(str,mainTagsIndex);
+			BasicDBObject setQuery = UpdateSetQuery(str);
+			BasicDBObject updateQuery = new BasicDBObject();
+			updateQuery.append("$set",setQuery);
+			coll.updateMulti(whereQuery, updateQuery);
+			     DBCursor cursor = coll.find();
+			System.out.println("Document updated successfully");
+			     int i = 1;
+			while (cursor.hasNext()) {
+				System.out.println("Updated Document: "+i);
+				System.out.println(cursor.next());
+				        i++;
+			}
+		 }catch(Exception e){
+			System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+		  }
+	}
+
+	public void InsertQueryGenerator(String[] colsNames,ArrayList<String> eachValue){
+		try{
+			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
+			DB db = mongoClient.getDB( databaseName );
+			System.out.println("Connect to database successfully");
+			DBCollection coll = db.getCollection(tableName);
+			System.out.println("Collection mycol selected successfully");
+			BasicDBObject doc = new BasicDBObject();
+			for(int j=0;j<colsNames.length;j++){
+				int i=0;
+				for(int k=0;k<colNames.length;k++){
+					if(colsNames[j] .equals(colsNames[k])){
+						i=k;
+						break;
+					}
+				}
+				if(colTypes[i] .equals("int")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],Integer.parseInt(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("boolean")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],Boolean.parseBoolean(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("long")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],Long.parseLong(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("float")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],Float.parseFloat(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("double")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],Double.parseDouble(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("String")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("Date")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("Timestamp")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i],StringToTimestamp(performOper(eachValue.get(i))));
+					}
+				}
+				if(colTypes[i] .equals("Time")){
+					if(eachValue.get(i) .equals("NULL") || eachValue.get(i) .equals("null")){
+						doc.append(colNames[i],null);
+					}else{
+						doc.append(colNames[i], (performOper(eachValue.get(i))));
+					}
+				}
+			}
+			coll.insert(doc);
+		}catch(Exception e){
+			System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+		}
+	}
+	public String limitOffset(String str){
+		int indexLimit = 0;
+		int indexOffset = 0;
+		String[] tokens = str.split(" ");
+		for(int i=0;i<tokens.length;i++){
+			if(tokens[i] .equals("LIMIT")){
+		indexLimit = i;
+		}
+		if(tokens[i] .equals("OFFSET")){
+		indexOffset = i;
+			}
+			}
+		if(indexLimit >0 && indexOffset >0){
+		return tokens[indexLimit+1]+":"+tokens[indexOffset+1];
+		}
+		if(indexLimit >0){
+		return tokens[indexLimit+1]+":0";
+			}
+		if(indexOffset >0){
+		return "0:"+tokens[indexOffset+1];
+		}
+			return "1000000:0";
+		}
+		public BasicDBObject UpdateSetQuery(String str){
+		BasicDBObject setQuery = new BasicDBObject();
+		int indexSet = str.toUpperCase().indexOf(" SET ");
+		int indexOfWhere = str.toUpperCase().indexOf(" WHERE ");
+		String test ="";
+		if(indexOfWhere >0){
+			test = str.substring(indexSet+4, indexOfWhere);
+		}else{
+				int indexEnd = str.indexOf(";");
+			if(indexEnd==(-1)){
+				indexEnd = str.length();
+			}
+			test = str.substring(indexSet, indexEnd);
+		}
+		String[] eachSet = test.split(",");
+		for(int i=0;i<eachSet.length;i++){
+			String[] nameValue = eachSet[i].split("=");
+			int colTypeIdentifiedId = 0;
+			for(int k=0;k<colTypes.length;k++){
+				if(performOper(nameValue[0]) .equals(colNames[k])){
+					colTypeIdentifiedId = k;
+					break;
+				}
+			}
+			String colType = colTypes[colTypeIdentifiedId];
+			if(colType == "int"){
+				setQuery.append(performOper(nameValue[0]),Integer.parseInt(performOper(nameValue[1])));
+			}
+			if(colType == "boolean"){
+				setQuery.append(performOper(nameValue[0]),Boolean.parseBoolean(performOper(nameValue[1])));
+			}
+			if(colType == "long"){
+				setQuery.append(performOper(nameValue[0]),Long.parseLong(performOper(nameValue[1])));
+			}
+			if(colType == "float"){
+				setQuery.append(performOper(nameValue[0]),Float.parseFloat(performOper(nameValue[1])));
+			}
+			if(colType == "double"){
+				setQuery.append(performOper(nameValue[0]),Double.parseDouble(performOper(nameValue[1])));
+			}
+			if(colType == "String"){
+				setQuery.append(performOper(nameValue[0]),(performOper(nameValue[1])));
+			}
+			if(colType == "Date"){
+				setQuery.append(performOper(nameValue[0]),(performOper(nameValue[1])));
+			}
+			if(colType == "Timestamp"){
+				setQuery.append(performOper(nameValue[0]),StringToTimestamp(performOper(nameValue[1])));
+			}
+			if(colType == "Time"){
+				setQuery.append(performOper(nameValue[0]), (performOper(nameValue[1])));
+			}
+		}
+		return setQuery;
+	}
+	public BasicDBObject sort(String str,int[] tagsIndex){
+	BasicDBObject sortQuery = new BasicDBObject();
+	String sortStatement ="";
+	int indexOfSort = str.toUpperCase().indexOf("ORDER BY ");
+	if(indexOfSort <0){
+		sortQuery.append(this.colNames[this.primaryKeyId], 1);
+		return sortQuery;
+	}
+	int requiredIndex=0;
+	for(int i=0;i<tagsIndex.length;i++){
+		if(indexOfSort == tagsIndex[i]){
+			requiredIndex=i;
+			break;
+		}
+	}
+	sortStatement = str.substring(tagsIndex[requiredIndex], tagsIndex[requiredIndex+1]);
+	sortStatement =sortStatement.replaceAll("ORDER BY ","");
+	sortStatement =sortStatement.replaceAll("order by ","");
+	String[] eachElement = sortStatement.split(",");
+		for(int i=0;i<colNames.length;i++){
+		for(int j=0;j<eachElement.length;j++){
+			if(eachElement[j].contains(colNames[i])){
+					if(eachElement[j].contains("DESC")){
+					sortQuery.append(colNames[i],-1);
+			}else{
+				sortQuery.append(colNames[i],1);
+			}
+		}
+	}
+	}
+	return sortQuery;
+	}
+
+
+	public BasicDBObject WhereStatement(String str,int[] tagsIndex){
+		if(!tableName .equals(tempTableName)){
+			for(int i=0;i<colNames.length;i++){
+				tempColNames[i] = tempTableName+"."+colNames[i];
+			}
+		}
+		String WhereStatement ="";
+		BasicDBObject whereQueryFinal = new BasicDBObject();
+
+		int[] subQueryCounter = getSubQueryConfirmation(str);
+		int indexWhereTemp = str.toUpperCase().indexOf("WHERE ");
+		if(indexWhereTemp <0){
+			return null;
+		}
+		int indexOfWhere=0;
+		while(indexWhereTemp >= 0) {
+			if(subQueryCounter[indexWhereTemp] ==0){
+				indexOfWhere = indexWhereTemp;
+				break;
+			}
+			indexWhereTemp = str.indexOf("WHERE ", indexWhereTemp+1);
+		}
+		if(indexOfWhere ==0){
+			return null;
+		}
+		int requiredIndex=0;
+		for(int i=0;i<tagsIndex.length;i++){
+			if(indexOfWhere == tagsIndex[i]){
+				requiredIndex=i;
+				break;
+			}
+		}
+		WhereStatement = str.substring(tagsIndex[requiredIndex], tagsIndex[requiredIndex+1]);
+		WhereStatement =WhereStatement.replaceFirst("WHERE ","");
+		WhereStatement =WhereStatement.replaceFirst("where ","");
+		int[] subQueryCounter2 = getSubQueryConfirmation(WhereStatement);
+		ArrayList<Integer> indexOfOr = new ArrayList<Integer>();
+		ArrayList<String> eachOrQuery = new ArrayList<String>();
+		int tempIndexOr = WhereStatement.indexOf("OR ");
+		while(tempIndexOr >=0){
+			if(subQueryCounter2[tempIndexOr] == 0){
+				indexOfOr.add(tempIndexOr);
+			}
+		tempIndexOr = WhereStatement.indexOf("OR ",tempIndexOr+1);
+		}
+		List<BasicDBObject> orLoopObject = new ArrayList<BasicDBObject>();
+		if(indexOfOr.size() ==0){
+			eachOrQuery.add(WhereStatement);
+		}else{
+			for(int i=0;i<indexOfOr.size();i++){
+				if(i==0){
+					eachOrQuery.add(WhereStatement.substring(0,indexOfOr.get(0)));
+				}else{
+					eachOrQuery.add(WhereStatement.substring(indexOfOr.get(i-1), indexOfOr.get(i)));
+				}
+			}
+			eachOrQuery.add(WhereStatement.substring(indexOfOr.get(indexOfOr.size()-1)));
+		}
+		for(int i=0;i<eachOrQuery.size();i++){
+			if(eachOrQuery.get(i).indexOf("OR ") ==0){
+				eachOrQuery.set(i, eachOrQuery.get(i).replaceFirst("OR ",""));
+			}
+			eachOrQuery.set(i,performOper(eachOrQuery.get(i)));
+		}
+		for(int kk=0;kk<eachOrQuery.size();kk++){
+			BasicDBObject testQuery = new BasicDBObject();
+			int[] subQueryCounterEachColumn = getSubQueryConfirmation(eachOrQuery.get(kk));
+			ArrayList<String> indexOfEachColumn = new ArrayList<String>();
+			ArrayList<String> eachColumnQuery = new ArrayList<String>();
+			for(int i=0;i<tempColNames.length;i++){
+				int tempIndexColumn = eachOrQuery.get(kk).indexOf(tempColNames[i]);
+				while(tempIndexColumn >=0){
+					if(subQueryCounterEachColumn[tempIndexColumn] == 0){
+						indexOfEachColumn.add(Integer.toString(tempIndexColumn)+":"+Integer.toString(i));
+					}
+					tempIndexColumn = eachOrQuery.get(kk).indexOf(tempColNames[i],tempIndexColumn+1);
+				}
+			}
+			for(int i=0;i<indexOfEachColumn.size();i++){
+				String[] tempSplit = indexOfEachColumn.get(i).split(":");
+				int tempIndexOfCol = Integer.parseInt(tempSplit[0]);
+				if(i ==(indexOfEachColumn.size()-1)){
+					eachColumnQuery.add(eachOrQuery.get(kk).substring(tempIndexOfCol));
+				}else{
+					String[] tempSplit1 = indexOfEachColumn.get(i+1).split(":");
+					int tempIndexOfCol1 = Integer.parseInt(tempSplit1[0]);
+					eachColumnQuery.add(performOper(eachOrQuery.get(kk).substring(tempIndexOfCol,tempIndexOfCol1)));
+				}
+			}
+			for(int i=0;i<eachColumnQuery.size();i++){
+				if(eachColumnQuery.get(i).indexOf("AND") ==(eachColumnQuery.get(i).length()-3)){
+					eachColumnQuery.set(i,eachColumnQuery.get(i).substring(0, eachColumnQuery.get(i).length()-3));
+				}
+			}
+			int[] indexOfEachColumnInWhere = new int[colNames.length];
+			int[] indexOfEachColumnNumber = new int[colNames.length];
+			int[] subQueryCounter3 = getSubQueryConfirmation(eachOrQuery.get(kk));
+			for(int i=0;i<tempColNames.length;i++){
+				indexOfEachColumnInWhere[i] = -1;
+				int tempIndexOfCol = eachOrQuery.get(kk).indexOf(tempColNames[i]);
+				while(tempIndexOfCol >= 0) {
+					if(subQueryCounter3[tempIndexOfCol] ==0){
+						indexOfEachColumnInWhere[i] = tempIndexOfCol;
+						break;
+					}
+					tempIndexOfCol = str.indexOf(tempColNames[i], tempIndexOfCol+1);
+				}
+			}
+			int aa=0;
+			while(aa<eachColumnQuery.size()){
+				int clauseIdentified = findClause(eachColumnQuery.get(aa));
+				if(clauseIdentified ==1){
+					String test = eachColumnQuery.get(aa);
+					int colIdInWhere=0,sqlComparatorId=0;
+					for(int i=0;i<tempColNames.length;i++){
+						if(test.indexOf(tempColNames[i]) <5 && test.indexOf(tempColNames[i]) !=(-1)){
+							colIdInWhere = i;
+							break;
+						}
+					}
+					for(int i=0;i<sqlComparators.length;i++){
+						if(test.contains(sqlComparators[i])){
+							sqlComparatorId=i;
+						}
+					}
+					String columnTypeIdentified = colTypes[colIdInWhere];
+			if(columnTypeIdentified .equals("int")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			int value = Integer.parseInt(performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("boolean")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			boolean value = Boolean.parseBoolean(performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("long")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			long value = Long.parseLong(performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("float")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			float value = Float.parseFloat(performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("double")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			double value = Double.parseDouble(performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("String")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			String value = (performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("String")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			String value = (performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("Timestamp")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			Timestamp value = StringToTimestamp(performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+			if(columnTypeIdentified .equals("String")){
+			String[] br = test.split(sqlComparators[sqlComparatorId],2);
+			String value =  (performOper(getValue(br[1]).get(0)));
+			if(sqlComparators[sqlComparatorId] == "="){
+				testQuery.put(colNames[colIdInWhere],value);
+			}
+			if(sqlComparators[sqlComparatorId] == "!="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$ne",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">"){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gt",value));
+			}
+			if(sqlComparators[sqlComparatorId] == "<="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$lte",value));
+			}
+			if(sqlComparators[sqlComparatorId] == ">="){
+				testQuery.put(colNames[colIdInWhere], new BasicDBObject("$gte",value));
+			}
+			}
+				aa++;
+			}else if(clauseIdentified ==2){
+					String test = eachColumnQuery.get(aa);
+					int colIdInWhere=0,sqlComparatorId=0;
+					for(int i=0;i<tempColNames.length;i++){
+						if(test.indexOf(tempColNames[i]) <5 && test.indexOf(tempColNames[i]) !=(-1)){
+							colIdInWhere = i;
+							break;
+						}
+					}
+					for(int i=0;i<sqlComparators.length;i++){
+						if(test.contains(sqlComparators[i])){
+							sqlComparatorId=i;
+						}
+					}
+					String columnTypeIdentified = colTypes[colIdInWhere];
+					test = test.replaceFirst(tempColNames[colIdInWhere], "");
+					test = test.replaceFirst("IN ", "");
+					String[] aaaa = getInClauseValue(test);
+					if(columnTypeIdentified .equals("int")){
+					int[] values = new int[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =Integer.parseInt(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("boolean")){
+					boolean[] values = new boolean[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =Boolean.parseBoolean(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("long")){
+					long[] values = new long[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =Long.parseLong(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("float")){
+					float[] values = new float[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =Float.parseFloat(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("double")){
+					double[] values = new double[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =Double.parseDouble(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("String")){
+					String[] values = new String[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("String")){
+					String[] values = new String[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("Timestamp")){
+					Timestamp[] values = new Timestamp[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] =StringToTimestamp(performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+					if(columnTypeIdentified .equals("String")){
+					String[] values = new String[aaaa.length];
+						for(int i=0;i<values.length;i++){
+							values[i] = (performOper(aaaa[i]));
+						}
+						testQuery.put(colNames[colIdInWhere], new BasicDBObject("$in",values));
+					}
+				aa++;
+			}else if(clauseIdentified == 3){
+				String test = eachColumnQuery.get(aa);
+				int colIdInWhere=0,sqlComparatorId=0;
+				for(int i=0;i<tempColNames.length;i++){
+					if(test.indexOf(tempColNames[i]) <5 && test.indexOf(tempColNames[i]) !=(-1)){
+						colIdInWhere = i;
+						break;
+					}
+				}
+				for(int i=0;i<sqlComparators.length;i++){
+					if(test.contains(sqlComparators[i])){
+						sqlComparatorId=i;
+					}
+				}
+				String columnTypeIdentified = colTypes[colIdInWhere];
+				test = test.replaceFirst(tempColNames[colIdInWhere], "");
+				test = test.replaceFirst("BETWEEN ", "");
+				int[] subQueryCounterTemp = this.getSubQueryConfirmation(test);
+				int indexOfAnd = test.indexOf(" AND ");
+				String query1="",query2="";
+				while(indexOfAnd >=0){
+					if(subQueryCounterTemp[indexOfAnd] == 0){
+						query1 = test.substring(0, indexOfAnd);
+						query2 = test.substring(indexOfAnd+5);
+						break;
+					}
+					indexOfAnd = test.indexOf(" AND ",indexOfAnd+1);
+				}
+				eachOrQuery.add(tempColNames[colIdInWhere]+">="+query1);
+				eachOrQuery.add(tempColNames[colIdInWhere]+"<="+query2);
+				aa++;
+			}else if(clauseIdentified == 4){
+				String test = eachColumnQuery.get(aa);
+				int colIdInWhere=0,sqlComparatorId=0;
+				for(int i=0;i<tempColNames.length;i++){
+					if(test.indexOf(tempColNames[i]) <5 && test.indexOf(tempColNames[i]) !=(-1)){
+						colIdInWhere = i;
+						break;
+					}
+				}
+				for(int i=0;i<sqlComparators.length;i++){
+					if(test.contains(sqlComparators[i])){
+						sqlComparatorId=i;
+					}
+				}
+				String columnTypeIdentified = colTypes[colIdInWhere];
+				test = test.replaceFirst(tempColNames[colIdInWhere], "");
+				test = test.replaceFirst("LIKE ", "");
+				String aaaa = getLikeClauseValue(test);
+				Pattern regex = Pattern.compile(aaaa); 
+				testQuery.put(colNames[colIdInWhere], regex);
+				aa++;
+			}
+			orLoopObject.add(testQuery);
+			}
+			whereQueryFinal.put("$or", orLoopObject);
+			}
+			return whereQueryFinal;
+		}
+
+
+		public ArrayList<String> getValue(String str){
+			ArrayList<String> value = new ArrayList<String>();
+			int counter=0;
+			int[] subQueryCounter = getSubQueryConfirmation(str);
+			int indexOfSelect = str.indexOf("SELECT ");
+			int selectCounter=0;
+			while(indexOfSelect >=0){
+				if(subQueryCounter[indexOfSelect] ==0){
+					selectCounter++;
+					break;
+				}
+				indexOfSelect = str.indexOf("SELECT ",indexOfSelect+1);
+			}
+			for(int i=0;i<subQueryCounter.length;i++){
+				if(subQueryCounter[i] ==0){
+					counter++;
+				}
+			}
+			if(counter ==subQueryCounter.length && selectCounter==0){
+				value.add(str);
+					return value;
+			}
+			str = performOper(str);
+			social_links_indexDAO test = new social_links_indexDAO();
+			ArrayList<String> a = test.selectAsArray(str);
+				return a;
+			}
+
+		public String[] getInClauseValue(String str){
+			System.out.println(str);
+			str = performOper(str);
+			int[] subQueryCheck = getSubQueryConfirmation(str);
+			
+			for(int i=0;i<subQueryCheck.length;i++){
+				System.out.println(subQueryCheck[i] +"  "+ str.charAt(i));
+			}
+			ArrayList<Integer> indexComma = new ArrayList<Integer>();
+			ArrayList<String> inClauseValues = new ArrayList<String>();
+			ArrayList<String> finalValues = new ArrayList<String>();
+	
+			ArrayList<String> finalValuesToReturn = new ArrayList<String>();
+			int tempCommaIndex = str.indexOf(",");
+			
+			while(tempCommaIndex >=0){
+				if(subQueryCheck[tempCommaIndex] ==0){
+					indexComma.add(tempCommaIndex);
+				}
+				tempCommaIndex = str.indexOf(",", tempCommaIndex+1);
+			}
+			if(indexComma.size() ==0){
+				
+				finalValues = this.getValue(str);
+				
+			}else{
+				for(int i=0;i<indexComma.size();i++){
+					if(i==0){
+						finalValues.add(str.substring(0,indexComma.get(0)));
+						System.out.println(finalValues);
+						
+	
+						
+					}else{
+						finalValues.add(str.substring(indexComma.get(i-1)+1, indexComma.get(i)));
+	
+					}
+					
+				}
+				finalValues.add(str.substring(indexComma.get(indexComma.size()-1)+1));
+			}
+			
+			for(int i=0;i<finalValues.size();i++){
+				ArrayList<String> valueTemp = this.getValue(finalValues.get(i));
+				for(int j=0;j<valueTemp.size();j++){
+					finalValuesToReturn.add(valueTemp.get(j));
+				}
+	
+			}
+			String[] finalValuesString = new String[finalValuesToReturn.size()];
+			finalValuesString = finalValuesToReturn.toArray(finalValuesString);
+	
+			return finalValuesString;
+		}
+		
+		public String getLikeClauseValue(String str){
+			System.out.println(str);
+			ArrayList<String> test = this.getValue(str);
+			String value = test.get(0);
+			value = this.performOper(value);
+			if(value.charAt(0) == '%'){
+				value = value.substring(1);
+			}
+			if(value.charAt(value.length()-1) == '%'){
+				value = value.substring(0, value.length()-1);
+			}
+			System.out.println(value);
+			return value;
+		}
+		
+		
+		public int findClause(String str){
+			
+			int clauseId = 1;
+			
+			int[] subQueryConfirmation = getSubQueryConfirmation(str);
+			int inId= str.indexOf(" IN");
+			while(inId >=0){
+				if(subQueryConfirmation[inId] == 0){
+					 clauseId = 2;
+					 break;
+				}
+				inId = str.indexOf(str,inId+1);
+			}
+			
+			int betweenId= str.indexOf(" BETWEEN");
+			while(betweenId >=0){
+				if(subQueryConfirmation[betweenId] == 0){
+					clauseId = 3;
+					break;
+				}
+				betweenId = str.indexOf(str,betweenId+1);
+			}
+			
+			int likeId = str.indexOf(" LIKE");
+			while(likeId >=0){
+				if(subQueryConfirmation[likeId] == 0){
+					clauseId = 4;
+					break;
+				}
+			}
+			
+			
+			return clauseId;
+	}
+
+
+
+	public String performOper(String str){
+		if(str ==""){
+			return str;
+		}
+		if(str.charAt(0) == '(' || str.charAt(0) =='[' ||str.charAt(0) == '{'){
+			str=str.substring(1);
+		}
+		if(str.charAt(str.length()-1) == ')' || str.charAt(str.length()-1) == ']' ||str.charAt(str.length()-1) == '}'){
+			str = str.substring(0,str.length()-1);
+		}
+		while(str.charAt(0) ==' '){
+							str = str.substring(1);
+		}
+		while(str.charAt(str.length()-1) == ' '){
+			str = str.substring(0,str.length()-1);
+		}
+		if(str ==""){
+			return str;
+		}
+		
+		while(str.charAt(0) =='\''||str.charAt(0) =='\t' || str.charAt(0) =='"' ||str.charAt(0) =='`' || str.charAt(0) =='(' ||str.charAt(0) ==')'){
+				if(str.length() ==1){
+					return "";
+				}
+				str = str.substring(1,str.length());
+			}
+		while(str.charAt(str.length()-1) =='\'' || str.charAt(str.length()-1) =='"' || str.charAt(str.length()-1)=='`' || str.charAt(str.length()-1) =='(' ||str.charAt(str.length()-1) ==')'){
+				if(str.length() ==1){
+					return "";
+				}
+				str = str.substring(0,str.length()-1);
+			}
+		return str;
+	}
+
+
+	
+	public Timestamp StringToTimestamp(String str){
+		try{
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+		Date parsedTimeStamp = dateFormat.parse(str);
+		Timestamp timestamp = new Timestamp(parsedTimeStamp.getTime());
+		return timestamp;
+		}catch(ParseException e){}
+		return null;
+	}
+	
+
+	public int[] mainClauses(String str, int[] count){
+	
+		String[] items = {"WHERE ", "ORDER BY ","LIMIT ","OFFSET ","GROUP BY ",";"};
+		int[] result=new int[items.length];
+		for(int i=0;i<result.length;i++){
+			result[i] = -1;
+			int indexTemp=str.indexOf(items[i]);
+			while(indexTemp >= 0) {
+				if(count[indexTemp] ==0){
+					result[i] = indexTemp;
+					break;
+				}
+				indexTemp = str.indexOf(items[i], indexTemp+1);
+			}	
+		}
+		if(result[result.length-1] == (-1) ){
+			result[result.length-1]  = str.length();
+		}
+		Arrays.sort(result);
+		
+		return result;
+	}
+
+
+
+	public double getGroupbyFunctionValue(String str,int code){
+		String[] values = this.performOper(str).split(",");
+		double[] val = new double[values.length];
+		for(int i=0;i<values.length;i++){
+			val[i] = Double.parseDouble(this.performOper(values[i]));
+		}
+		if(code ==1){
+			Arrays.sort(val);
+			return val[val.length-1];
+		}
+		if(code ==2){
+			Arrays.sort(val);
+			return val[0];
+		}
+		if(code ==3){
+			double avg =0;
+			for(int i=0;i<val.length;i++){
+				avg+=val[i];
+			}
+			return avg/val.length;
+		}
+		if(code ==4){
+			double sum =0;
+			for(int i=0;i<val.length;i++){
+				sum+=val[i];
+			}
+			return sum;
+		}
+		
+		return (Double) null;
+	}
+
+	
+public int[] getSubQueryConfirmation(String str){
+		
+	
+	ArrayList<String> EachRow = new ArrayList<String>();
+	String valueString = str;
+	String test="";
+	int[] count = new int[str.length()];
+	for(int i=0;i<str.length();i++){
+		count[i] =0;
+	}
+	
+	
+
+
+	Stack<Character> st = new Stack<Character>();
+	Stack<Character> st1= new Stack<Character>();
+	for(int i=0;i<valueString.length();i++){
+		if(valueString.charAt(i) == '('){
+			
+				st.push('(');
+	
+		}
+		
+
+
+		if(valueString.charAt(i)==')' ){
+			if(!st.empty() && st.peek()=='('){
+		         try {
+		             st.pop();
+		          }
+		          catch (EmptyStackException e) {
+		          }
+			}else{
+				test+=String.valueOf(valueString.charAt(i));
+			}
+		}
+		if(valueString.charAt(i) ==','){
+			if(st.empty()){
+				EachRow.add(test);
+				test="";
+			}else{
+				test+=String.valueOf(valueString.charAt(i));
+			}
+		}else{
+			test+=String.valueOf(valueString.charAt(i));
+		}
+		if(!st.empty()){
+			count[i] =1;
+		}
+		}
+
+		EachRow.add(test);
+
+
+		
+		
+		
+	return count;
+	}
+
+
+
+
+}

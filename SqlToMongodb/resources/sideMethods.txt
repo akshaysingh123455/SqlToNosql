@@ -1,0 +1,163 @@
+		
+		/**
+		 * <p>
+		 * This method provide the values in IN clause is detected
+		 * <p>
+		 * 
+		 * <p>
+		 * This method takes 3 inputs:-
+		 * 	a) query which basically contains value portion
+		 * 	b) hostname of required mongodb
+		 * 	c) port number of the same
+		 * <p>
+		 * 
+		 * <p>
+		 * This method checks the whether the input contains 'IN' clause regarding conditions and use helper method 'getValue'
+		 * <p>
+		 * 
+		 * @param 		str		query portion containing where values
+		 * @param 		host	host name
+		 * @param 		port	port number
+		 * 
+		 * @return		finalValuesString  	values of IN clause
+		 */
+		public String[] getInClauseValue(String str,String host,int port){
+			System.out.println(str);
+			str = performOper(str);
+			int[] subQueryCheck = getSubQueryConfirmation(str);
+			
+			for(int i=0;i<subQueryCheck.length;i++){
+				System.out.println(subQueryCheck[i] +"  "+ str.charAt(i));
+			}
+			ArrayList<Integer> indexComma = new ArrayList<Integer>();
+			ArrayList<String> inClauseValues = new ArrayList<String>();
+			ArrayList<String> finalValues = new ArrayList<String>();
+	
+			ArrayList<String> finalValuesToReturn = new ArrayList<String>();
+			int tempCommaIndex = str.indexOf(",");
+			
+			while(tempCommaIndex >=0){
+				if(subQueryCheck[tempCommaIndex] ==0){
+					indexComma.add(tempCommaIndex);
+				}
+				tempCommaIndex = str.indexOf(",", tempCommaIndex+1);
+			}
+			if(indexComma.size() ==0){
+				
+				finalValues = this.getValue(str,host,port);
+				
+			}else{
+				for(int i=0;i<indexComma.size();i++){
+					if(i==0){
+						finalValues.add(str.substring(0,indexComma.get(0)));
+						System.out.println(finalValues);
+						
+	
+						
+					}else{
+						finalValues.add(str.substring(indexComma.get(i-1)+1, indexComma.get(i)));
+	
+					}
+					
+				}
+				finalValues.add(str.substring(indexComma.get(indexComma.size()-1)+1));
+			}
+			
+			for(int i=0;i<finalValues.size();i++){
+				ArrayList<String> valueTemp = this.getValue(finalValues.get(i),host,port);
+				for(int j=0;j<valueTemp.size();j++){
+					finalValuesToReturn.add(valueTemp.get(j));
+				}
+	
+			}
+			String[] finalValuesString = new String[finalValuesToReturn.size()];
+			finalValuesString = finalValuesToReturn.toArray(finalValuesString);
+	
+			return finalValuesString;
+		}
+		
+
+
+		/**
+		 * <p>
+		 * This method provide the values in LIKE clause is detected
+		 * <p>
+		 * 
+		 * <p>
+		 * This method takes 3 inputs:-
+		 * 	a) query which basically contains value portion
+		 * 	b) hostname of required mongodb
+		 * 	c) port number of the same
+		 * <p>
+		 * 
+		 * <p>
+		 * This method checks the whether the input contains 'LIKE' clause regarding conditions and use helper method 'getValue'
+		 * <p>
+		 * 
+		 * @param 		str		query portion containing where values
+		 * @param 		host	host name
+		 * @param 		port	port number
+		 * 
+		 * @return		finalValuesString  	values of LIKE clause
+		 */
+		public String getLikeClauseValue(String str,String host,int port){
+			System.out.println(str);
+			ArrayList<String> test = this.getValue(str,host,port);
+			String value = test.get(0);
+			value = this.performOper(value);
+			if(value.charAt(0) == '%'){
+				value = value.substring(1);
+			}
+			if(value.charAt(value.length()-1) == '%'){
+				value = value.substring(0, value.length()-1);
+			}
+			System.out.println(value);
+			return value;
+		}
+		
+		
+		/**
+		 * This method identify clause present in query
+		 * 
+		 * <p>
+		 * This method take sql query as input and identify the clause identify
+		 * Only four clauses are supported in MongoDB are 'IN','BETWEEN','LIKE','AND'. 'OR' clause is also supported but it detected earlier in select method
+		 * <p>
+		 * 
+		 * @param 		str			sql select Query already trimmed by 'OR' clause	
+		 * @return		clauseId	clause id indetified 
+		 */
+		public int findClause(String str){
+			
+			int clauseId = 1;
+			
+			int[] subQueryConfirmation = getSubQueryConfirmation(str);
+			int inId= str.indexOf(" IN");
+			while(inId >=0){
+				if(subQueryConfirmation[inId] == 0){
+					 clauseId = 2;
+					 break;
+				}
+				inId = str.indexOf(str,inId+1);
+			}
+			
+			int betweenId= str.indexOf(" BETWEEN");
+			while(betweenId >=0){
+				if(subQueryConfirmation[betweenId] == 0){
+					clauseId = 3;
+					break;
+				}
+				betweenId = str.indexOf(str,betweenId+1);
+			}
+			
+			int likeId = str.indexOf(" LIKE");
+			while(likeId >=0){
+				if(subQueryConfirmation[likeId] == 0){
+					clauseId = 4;
+					break;
+				}
+			}
+			
+			
+			return clauseId;
+	}

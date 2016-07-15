@@ -1,0 +1,187 @@
+		/**
+		 * <p>
+		 * This method perform basic trimming operation on input string
+		 * <p>
+		 * 
+		 * @param		str		input string
+		 * 
+		 * @return		str		trimmed string
+		 */	
+	public String performOper(String str){
+		if(str ==""){
+			return str;
+		}
+		if(str.charAt(0) == '(' || str.charAt(0) =='[' ||str.charAt(0) == '{'){
+			str=str.substring(1);
+		}
+		if(str.charAt(str.length()-1) == ')' || str.charAt(str.length()-1) == ']' ||str.charAt(str.length()-1) == '}'){
+			str = str.substring(0,str.length()-1);
+		}
+		while(str.charAt(0) ==' '){
+							str = str.substring(1);
+		}
+		while(str.charAt(str.length()-1) == ' '){
+			str = str.substring(0,str.length()-1);
+		}
+		if(str ==""){
+			return str;
+		}
+		
+		while(str.charAt(0) =='\''||str.charAt(0) =='\t' || str.charAt(0) =='"' ||str.charAt(0) =='`' || str.charAt(0) =='(' ||str.charAt(0) ==')'){
+				if(str.length() ==1){
+					return "";
+				}
+				str = str.substring(1,str.length());
+			}
+		while(str.charAt(str.length()-1) =='\'' || str.charAt(str.length()-1) =='"' || str.charAt(str.length()-1)=='`' || str.charAt(str.length()-1) =='(' ||str.charAt(str.length()-1) ==')'){
+				if(str.length() ==1){
+					return "";
+				}
+				str = str.substring(0,str.length()-1);
+			}
+		return str;
+	}
+
+
+	/**
+	 * This method covert input frmo string to Timestamp 
+	 * 
+	 * @param 	str				input in string
+	 * @return	timestamp		Timestamp
+	 */
+	public Timestamp StringToTimestamp(String str){
+		try{
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+		Date parsedTimeStamp = dateFormat.parse(str);
+		Timestamp timestamp = new Timestamp(parsedTimeStamp.getTime());
+		return timestamp;
+		}catch(ParseException e){}
+		return null;
+	}
+	
+
+	/**
+	 * This method identify the locations of different clauses that are acceptable and return their index in given query
+	 * 
+	 * @param 	str 			input query
+	 * @param   count			array of equal length of input string which include information whether string have sub-query or not
+	 *
+	 * @return 	result 			location index for each clause
+	 */
+	public int[] mainClauses(String str, int[] count){
+		str = str.toUpperCase();
+		String[] items = {"WHERE ", "ORDER BY ","LIMIT ","OFFSET ","GROUP BY ",";"};
+		int[] result=new int[items.length];
+		for(int i=0;i<result.length;i++){
+			result[i] = -1;
+			int indexTemp=str.indexOf(items[i]);
+			while(indexTemp >= 0) {
+				if(count[indexTemp] ==0){
+					result[i] = indexTemp;
+					break;
+				}
+				indexTemp = str.indexOf(items[i], indexTemp+1);
+			}	
+		}
+		if(result[result.length-1] == (-1) ){
+			result[result.length-1]  = str.length();
+		}
+		Arrays.sort(result);
+		
+		return result;
+	}
+
+
+
+	public double getGroupbyFunctionValue(String str,int code){
+		String[] values = this.performOper(str).split(",");
+		double[] val = new double[values.length];
+		for(int i=0;i<values.length;i++){
+			val[i] = Double.parseDouble(this.performOper(values[i]));
+		}
+		if(code ==1){
+			Arrays.sort(val);
+			return val[val.length-1];
+		}
+		if(code ==2){
+			Arrays.sort(val);
+			return val[0];
+		}
+		if(code ==3){
+			double avg =0;
+			for(int i=0;i<val.length;i++){
+				avg+=val[i];
+			}
+			return avg/val.length;
+		}
+		if(code ==4){
+			double sum =0;
+			for(int i=0;i<val.length;i++){
+				sum+=val[i];
+			}
+			return sum;
+		}
+		
+		return (Double) null;
+	}
+
+	
+public int[] getSubQueryConfirmation(String str){
+		
+	
+	ArrayList<String> EachRow = new ArrayList<String>();
+	String valueString = str;
+	String test="";
+	int[] count = new int[str.length()];
+	for(int i=0;i<str.length();i++){
+		count[i] =0;
+	}
+	
+	
+
+
+	Stack<Character> st = new Stack<Character>();
+	Stack<Character> st1= new Stack<Character>();
+	for(int i=0;i<valueString.length();i++){
+		if(valueString.charAt(i) == '('){
+			
+				st.push('(');
+	
+		}
+		
+
+
+		if(valueString.charAt(i)==')' ){
+			if(!st.empty() && st.peek()=='('){
+		         try {
+		             st.pop();
+		          }
+		          catch (EmptyStackException e) {
+		          }
+			}else{
+				test+=String.valueOf(valueString.charAt(i));
+			}
+		}
+		if(valueString.charAt(i) ==','){
+			if(st.empty()){
+				EachRow.add(test);
+				test="";
+			}else{
+				test+=String.valueOf(valueString.charAt(i));
+			}
+		}else{
+			test+=String.valueOf(valueString.charAt(i));
+		}
+		if(!st.empty()){
+			count[i] =1;
+		}
+		}
+
+		EachRow.add(test);
+
+
+		
+		
+		
+	return count;
+	}
